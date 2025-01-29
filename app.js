@@ -5,7 +5,6 @@ const slugify = require('slugify');
 const _ = require('dotenv').config();
 const path = require('path');
 const { getYoutubeVideoID } = require('./utils');
-
 const bot = new TelegramApi(process.env.API_KEY, {
     polling: true,
 });
@@ -79,9 +78,7 @@ const downloadAndSendYtVideo = async (link, chatId, option) => {
             });
             const title = videoInfo.videoDetails.title;
 
-            const uniqueFileName = `audio_${slugify(
-                title
-            )})}_${Date.now()}.mp3`;
+            const uniqueFileName = `audio_${slugify(title)}_${Date.now()}.mp3`;
             const writableStream = fs.createWriteStream(uniqueFileName);
             audio.pipe(writableStream);
 
@@ -138,7 +135,7 @@ const sendQualityOptions = async (chatId, videoId) => {
         const author = `${info.videoDetails.author.name} ${info.videoDetails.author.user} ${info.videoDetails.author.user_url}`;
         const uploadDate = info.videoDetails.uploadDate;
         const fileSizeBytes = parseInt(contentLength, 10); // Convert string to number
-        const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2); // Convert to MB
+        const fileSizeMB = Math.round((fileSizeBytes / (1024 * 1024))); // Convert to MB
 
         const inlineKeyboard = [
             [
@@ -163,7 +160,7 @@ const sendQualityOptions = async (chatId, videoId) => {
             parse_mode: 'html',
         };
 
-        if (Number(fileSizeMB) > 100.0) {
+        if (Number(fileSizeMB) > Number(process.env.MAX_SIZE)) {
             await bot.sendMessage(
                 chatId,
                 'Video size is too big. Please choose a smaller video.'
@@ -171,9 +168,6 @@ const sendQualityOptions = async (chatId, videoId) => {
             video.destroy(); // Stop the download
             return; // Exit the function to prevent further execution
         }
-
-        console.log(`Video title: ${title}`);
-        console.log(`File size: ${fileSizeMB} MB`);
 
         await bot.sendMessage(
             chatId,
