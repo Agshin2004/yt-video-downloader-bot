@@ -162,8 +162,8 @@ const sendQualityOptions = async (chatId, videoId) => {
             }),
             parse_mode: 'html',
         };
-
-        if (Number(fileSizeMB) > Number(process.env.MAX_SIZE)) {
+        
+        if (Number(fileSizeMB) > Number(process.env.MAX_FILE_SIZE)) {
             await bot.sendMessage(
                 chatId,
                 'Video size is too big. Please choose a smaller video.'
