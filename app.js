@@ -6,8 +6,6 @@ const _ = require('dotenv').config();
 const path = require('path');
 const { getYoutubeVideoID } = require('./utils');
 
-
-
 const bot = new TelegramApi(process.env.API_KEY, {
     polling: true,
 });
@@ -44,6 +42,25 @@ const downloadAndSendYtVideo = async (link, chatId, option) => {
                     chatId,
                     'Finished downloading, sending video back...'
                 );
+
+                const stats = fs.statSync(`./${uniqueFileName}`);
+                const fileSizeMB = Math.round(stats.size / (1024 * 1024));
+
+                if (fileSizeMB > process.env.MAX_FILE_SIZE) {
+                    await bot.deleteMessage(chatId, finishedMsgId);
+
+                    await bot.sendMessage(
+                        chatId,
+                        'Video size is too big. Please choose a smaller video.'
+                    );
+                    fs.unlink(path.resolve(`./${uniqueFileName}`), (err) => {
+                        if (err) throw err;
+
+                        console.log('file deleted.');
+                    });
+
+                    return; // Exit the function to prevent further execution
+                }
 
                 await bot.sendVideo(chatId, `./${uniqueFileName}`);
                 await bot.deleteMessage(chatId, finishedMsgId);
@@ -138,7 +155,7 @@ const sendQualityOptions = async (chatId, videoId) => {
         const author = `${info.videoDetails.author.name} ${info.videoDetails.author.user} ${info.videoDetails.author.user_url}`;
         const uploadDate = info.videoDetails.uploadDate;
         const fileSizeBytes = parseInt(contentLength, 10); // Convert string to number
-        const fileSizeMB = Math.round((fileSizeBytes / (1024 * 1024))); // Convert to MB
+        const fileSizeMB = Math.round(fileSizeBytes / (1024 * 1024)); // Convert to MB
 
         const inlineKeyboard = [
             [
@@ -162,7 +179,7 @@ const sendQualityOptions = async (chatId, videoId) => {
             }),
             parse_mode: 'html',
         };
-        
+
         if (Number(fileSizeMB) > Number(process.env.MAX_FILE_SIZE)) {
             await bot.sendMessage(
                 chatId,
@@ -180,7 +197,7 @@ const sendQualityOptions = async (chatId, videoId) => {
                 <u>${fileSizeMB}MB</u>\n
                 <em>Please select download options below👇👇👇</em>
                 
-                <u>Likes: ${likes}</u>
+                <u>Likes: ${likes}</u> 
                 <u>Duration: ${(lengthSeconds / 60).toFixed(2)}</u>
                 <u>Author: ${author}</u>
                 <u>Upload Date: ${new Date(uploadDate)}</u>
@@ -203,6 +220,7 @@ const start = () => {
             /https?:\/\/(?:m\.|www\.)?youtube\.com\/watch\?v=[^&\s]+|https?:\/\/youtu\.be\/[^&\s]+/;
 
         if (text === '/start') {
+            console.log(`NEW USER JOINED ${msg.chat.username}`);
             await bot.sendSticker(
                 chatId,
                 'CAACAgIAAxkBAAJnbmeY4z-vd2dRm7x536yTBXUWQssOAAIFAAPANk8T-WpfmoJrTXU2BA'
@@ -228,7 +246,9 @@ const start = () => {
     bot.on('callback_query', async (msg) => {
         if (msg.data.startsWith('o_')) {
             const option = msg.data.split('_')[1];
-            const link = `https://youtube.com/watch?v=${msg.data.split('_')[2]}`;
+            const link = `https://youtube.com/watch?v=${
+                msg.data.split('_')[2]
+            }`;
             const chatId = msg.data.split('_')[3];
             downloadAndSendYtVideo(link, chatId, option);
             await bot.deleteMessage(chatId, msg.message.message_id);
